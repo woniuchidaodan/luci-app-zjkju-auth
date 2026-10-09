@@ -9,18 +9,27 @@ OUT_FILE="/tmp/zjkju-auth-out.log"
 
 logger -t zjkju-auth "wrapper started"
 
-# ============================================================
-# 抓取认证页 URL（三层兜底）
-# ============================================================
+# 检查是否启用：未启用直接退出
+config_load zjkju-auth
+config_get_bool enabled main enabled 0
+if [ "$enabled" != "1" ]; then
+    logger -t zjkju-auth "服务未启用，wrapper 退出"
+    exit 0
+fi
+
+is_online() {
+    BODY=$(curl -s --max-time 5 -A "$UA" \
+        "http://www.msftconnecttest.com/connecttest.txt" 2>/dev/null | tr -d '\r\n')
+    [ "$BODY" = "Microsoft Connect Test" ]
+}
+
 fetch_auth_url() {
-    # 第 1 层：手动 URL
     config_get manual_url main manual_url
     if [ -n "$manual_url" ]; then
         echo "$manual_url"
         return 0
     fi
 
-    # 第 2 层：访问普通外网，从 302 抓
     for TRIGGER in \
         "http://www.baidu.com/" \
         "http://www.example.com/" \
@@ -49,7 +58,6 @@ fetch_auth_url() {
         fi
     done
 
-    # 第 3 层：缓存的 URL
     if [ -f "$CACHE_FILE" ]; then
         CACHED=$(cat "$CACHE_FILE" 2>/dev/null)
         if echo "$CACHED" | grep -q "wlanuserip="; then
@@ -61,21 +69,19 @@ fetch_auth_url() {
     return 1
 }
 
-# ============================================================
-# 主循环
-# ============================================================
 while true; do
     config_load zjkju-auth
 
-    config_get_bool enabled main enabled 1
+    config_get_bool enabled main enabled 0
     config_get username main username
     config_get password main password
     config_get service main service
     config_get check_interval main check_interval 60
 
+    # 用户取消勾选后，wrapper 优雅退出
     if [ "$enabled" != "1" ]; then
-        sleep 10
-        continue
+        logger -t zjkju-auth "服务已禁用，wrapper 退出"
+        exit 0
     fi
 
     if [ -z "$username" ] || [ -z "$password" ]; then
@@ -84,24 +90,26 @@ while true; do
         continue
     fi
 
-    AUTH_URL=$(fetch_auth_url)
+    if is_online; then
+        sleep "$check_interval"
+        continue
+    fi
 
-    # ★ 抓不到 URL（在线状态）时用占位符
-    # ruijie 内部有 checkNetwork()，在线时打印"已联网，无需认证"并退出
+    logger -t zjkju-auth "检测到掉线，开始认证"
+
+    AUTH_URL=$(fetch_auth_url)
     if [ -z "$AUTH_URL" ]; then
         AUTH_URL="http://10.80.80.249/eportal/index.jsp"
     fi
 
     $RUJIE -u "$username" -p "$password" -s "$service" -m "$AUTH_URL" > "$OUT_FILE" 2>&1
 
-    # 把 ruijie 输出透传到 syslog（与上游日志格式完全一致）
     if [ -f "$OUT_FILE" ]; then
         while IFS= read -r line; do
             [ -n "$line" ] && logger -t zjkju-auth "$line"
         done < "$OUT_FILE"
     fi
 
-    # 只缓存带 wlanuserip 的真 URL，占位符不缓存
     if grep -q "认证成功" "$OUT_FILE" 2>/dev/null; then
         case "$AUTH_URL" in
             *wlanuserip=*)
