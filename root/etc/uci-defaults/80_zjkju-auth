@@ -1,7 +1,7 @@
 #!/bin/sh
 
-# 首次安装后启用服务
+# 不自动启用服务，完全由用户在 LuCI 勾选"启用"后触发
+# 如需卸载时清理，保留 enable 也是无害的
 /etc/init.d/zjkju-auth enable
-/etc/init.d/zjkju-auth start
 
 exit 0
