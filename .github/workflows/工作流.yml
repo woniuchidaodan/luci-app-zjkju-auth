@@ -1,0 +1,175 @@
+name: 🚀 多架构编译并发布 ZJKJU 校园网认证 LuCI 应用
+
+on:
+  workflow_dispatch:
+
+permissions: write-all
+
+jobs:
+  build:
+    name: 编译 ${{ matrix.arch }} on ${{ matrix.version }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        arch:
+          - x86_64
+          - aarch64_generic
+          - aarch64_cortex-a53
+          - aarch64_cortex-a72
+          - aarch64_cortex-a76
+          - arm_cortex-a7_neon-vfpv4
+          - arm_cortex-a9_vfpv3-d16
+          - arm_cortex-a15_neon-vfpv4
+          - mips_24kc
+          - mipsel_24kc
+        version:
+          - 24.10.6
+          - 25.12.2
+
+    steps:
+      - name: 检出源码
+        uses: actions/checkout@v4
+
+      - name: 用 OpenWrt 官方 Action 编译
+        uses: openwrt/gh-action-sdk@v9
+        env:
+          ARCH: ${{ matrix.arch }}-${{ matrix.version }}
+          FEEDNAME: zjkju
+          PACKAGES: luci-app-zjkju-auth
+          NO_REFRESH_CHECK: true
+
+      - name: 重命名产物（加架构和版本后缀）
+        run: |
+          DIR="bin/packages/${{ matrix.arch }}/zjkju"
+          if [ ! -d "$DIR" ]; then
+            echo "=== 未找到 $DIR 目录，尝试搜索 ==="
+            find bin/packages -type f -name "*.ipk" -o -name "*.apk" 2>/dev/null || true
+            exit 0
+          fi
+          cd "$DIR"
+          for f in *.ipk; do
+            [ -f "$f" ] && mv "$f" "${f%.ipk}-${{ matrix.arch }}-${{ matrix.version }}.ipk"
+          done
+          for f in *.apk; do
+            [ -f "$f" ] && mv "$f" "${f%.apk}-${{ matrix.arch }}-${{ matrix.version }}.apk"
+          done
+          echo "=== 重命名后 ==="
+          ls -la
+
+      - name: 上传产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: pkg-${{ matrix.arch }}-${{ matrix.version }}
+          path: |
+            bin/packages/${{ matrix.arch }}/zjkju/*.ipk
+            bin/packages/${{ matrix.arch }}/zjkju/*.apk
+          retention-days: 7
+          if-no-files-found: ignore
+
+  release:
+    name: 📦 发布
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: 检出源码
+        uses: actions/checkout@v4
+
+      - name: 下载所有产物
+        uses: actions/download-artifact@v4
+        with:
+          pattern: pkg-*
+          path: dist/
+          merge-multiple: true
+
+      - name: 列出所有文件
+        run: |
+          echo "=== 所有编译产物 ==="
+          find dist -type f | sort
+          echo ""
+          echo "=== 文件总数 ==="
+          find dist -type f | wc -l
+
+      - name: 提取版本号
+        id: get_version
+        run: |
+          PKG_VERSION=$(grep '^PKG_VERSION:=' Makefile | cut -d= -f2 | tr -d ' ')
+          PKG_RELEASE=$(grep '^PKG_RELEASE:=' Makefile | cut -d= -f2 | tr -d ' ')
+          echo "VERSION=${PKG_VERSION}-r${PKG_RELEASE}" >> $GITHUB_OUTPUT
+          echo "✅ 版本: ${PKG_VERSION}-r${PKG_RELEASE}"
+
+      - name: 删除旧 Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="v${{ steps.get_version.outputs.VERSION }}"
+          gh release delete "$TAG" \
+            --repo "${{ github.repository }}" \
+            --yes --cleanup-tag 2>/dev/null || echo "旧 Release 不存在，跳过"
+
+      - name: 发布到 Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.get_version.outputs.VERSION }}
+          name: luci-app-zjkju-auth ${{ steps.get_version.outputs.VERSION }}
+          body: |
+            ## luci-app-zjkju-auth ${{ steps.get_version.outputs.VERSION }}
+
+            湛江科技学院锐捷 ePortal 校园网自动认证的 LuCI 应用。
+
+            ### 📋 版本信息
+
+            | 项 | 值 |
+            |-----|-----|
+            | 版本 | `v${{ steps.get_version.outputs.VERSION }}` |
+            | 目标平台 | ImmortalWrt / OpenWrt |
+            | 支持架构 | aarch64 / arm / mips / x86_64 |
+            | 包格式 | ipk (24.10) + apk (25.12) |
+
+            ### 📦 支持架构
+
+            | 架构 | 24.10.6 (ipk) | 25.12.2 (apk) |
+            |------|---------------|---------------|
+            | x86_64 | ✅ | ✅ |
+            | aarch64_generic | ✅ | ✅ |
+            | aarch64_cortex-a53 | ✅ | ✅ |
+            | aarch64_cortex-a72 | ✅ | ✅ |
+            | aarch64_cortex-a76 | ✅ | ✅ |
+            | arm_cortex-a7_neon-vfpv4 | ✅ | ✅ |
+            | arm_cortex-a9_vfpv3-d16 | ✅ | ✅ |
+            | arm_cortex-a15_neon-vfpv4 | ✅ | ✅ |
+            | mips_24kc | ✅ | ✅ |
+            | mipsel_24kc | ✅ | ✅ |
+
+            ### 🚀 安装
+
+            **OpenWrt 24.10 及以下（ipk）：**
+            ```bash
+            opkg update
+            opkg install luci-compat curl
+            opkg install luci-app-zjkju-auth_*.ipk
+            ```
+
+            **OpenWrt 25.12 及以上（apk）：**
+            ```bash
+            apk update
+            apk add luci-compat curl
+            apk add --allow-untrusted luci-app-zjkju-auth_*.apk
+            ```
+
+            ### 📝 使用
+
+            安装后进入 **服务 → ZJKJU 校园网认证**，填入学号、密码，保存并应用即可。
+
+            ### ⚠️ 免责声明
+
+            本项目仅供学习交流使用，使用本工具可能违反学校网络管理规定，请自行承担风险。
+          files: dist/*
+          draft: false
+          prerelease: false
+          generate_release_notes: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
