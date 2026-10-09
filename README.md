@@ -39,7 +39,7 @@
 
 | 文件名 | 适用平台 | 架构 |
 |--------|----------|------|
-| luci-app-zjkju-auth_1.0.0-r1_all.ipk | ImmortalWrt 24.10 | aarch64_cortex-a53 |
+| luci-app-zjkju-auth_1.0.0-r1_aarch64_cortex-a53.ipk | ImmortalWrt 24.10 | aarch64_cortex-a53 |
 
 ## 🚀 安装
 
