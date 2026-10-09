@@ -28,7 +28,7 @@
 | 项目 | 版本 |
 |------|------|
 | 系统 | ImmortalWrt / OpenWrt 24.10+ |
-| 目标平台 | `mediatek/filogic`（如 WR30U、WR30X 等 MT7981 路由器） |
+| 目标平台 | `mediatek/filogic`（如 WR30U、AX3000T 等 MT7981 路由器） |
 | CPU 架构 | `aarch64_cortex-a53` (ARM64) |
 
 如需适配其他平台/架构，修改 `.github/workflows/build.yml` 中的 SDK 下载地址即可。
