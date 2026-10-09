@@ -2,15 +2,6 @@ name: 🚀 编译并发布 ZJKJU 校园网认证 LuCI 应用
 
 on:
   workflow_dispatch:
-  push:
-    branches: [ main ]
-    paths:
-      - 'Makefile'
-      - 'luasrc/**'
-      - 'root/**'
-      - 'Ruijie_Portal_Auth.go'
-      - 'go.mod'
-      - '.github/workflows/build.yml'
 
 permissions: write-all
 
@@ -119,9 +110,13 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           REPO="${{ github.repository }}"
-          TAG="v${{ needs.build.outputs.pkg_version }}-${{ github.run_number }}"
-          TITLE="luci-app-zjkju-auth ${{ needs.build.outputs.pkg_version }} (build #${{ github.run_number }})"
+          TAG="v${{ needs.build.outputs.pkg_version }}"
+          TITLE="luci-app-zjkju-auth ${{ needs.build.outputs.pkg_version }}"
 
+          echo "==== 删除旧 Release (如果存在) ===="
+          gh release delete "$TAG" --repo "$REPO" --yes --cleanup-tag 2>/dev/null || echo "旧 Release 不存在，跳过"
+
+          echo "==== 创建新 Release: $TAG ===="
           gh release create "$TAG" \
             --repo "$REPO" \
             --title "$TITLE" \
@@ -129,15 +124,21 @@ jobs:
 
           湛江科技学院锐捷 ePortal 校园网自动认证的 LuCI 应用。
 
+          ### 📋 版本信息
+          - 版本: \`v${{ needs.build.outputs.pkg_version }}\`
+          - 目标平台: ImmortalWrt 24.10 (mediatek/filogic)
+          - CPU 架构: aarch64_cortex-a53 (ARM64)
+
           ### 📦 安装
           \`\`\`bash
           opkg install luci-app-zjkju-auth_*.ipk
-          \`\`\`" \
-            || echo "Release 已存在"
+          \`\`\`"
 
+          echo "==== 上传 ipk ===="
           gh release upload "$TAG" \
             ${{ github.workspace }}/output/*.ipk \
             --repo "$REPO" \
             --clobber
 
           echo "✅ 发布完成"
+          echo "Release: https://github.com/$REPO/releases/tag/$TAG"
