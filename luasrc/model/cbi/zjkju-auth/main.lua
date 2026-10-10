@@ -25,18 +25,12 @@ o.default = "%E7%94%B5%E4%BF%A1%E6%A0%A1%E5%9B%AD%E7%BD%91"
 o.rmempty = false
 o.description = translate("电信校园网请保持默认值：%E7%94%B5%E4%BF%A1%E6%A0%A1%E5%9B%AD%E7%BD%91")
 
-o = s:option(Value, "check_interval", translate("检测间隔（秒）"))
-o.datatype = "uinteger"
-o.default = 60
-o.rmempty = false
-
 o = s:option(TextValue, "manual_url", translate("手动认证 URL（可选）"),
 	translate("自动抓取失败时的兜底。留空则自动抓取。可以从浏览器地址栏复制完整认证页 URL 粘贴到这里。"))
 o.rows = 3
 o.rmempty = true
 o.optional = true
 
--- 运行日志显示区
 local sec = m:section(SimpleSection)
 sec.template = "zjkju-auth/log"
 
