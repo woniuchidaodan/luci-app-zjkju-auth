@@ -97,6 +97,7 @@ opkg install luci-compat curl
 - **重启服务**：重启认证服务
 - **清空日志**：一键清空系统日志
 
+联网在线时：
 ```
 wrapper started
 锐捷认证客户端启动
