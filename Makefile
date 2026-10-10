@@ -1,40 +1,18 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=luci-app-zjkju-auth
-PKG_VERSION:=1.0.0
+PKG_VERSION:=1.0.1
 PKG_RELEASE:=1
 
-PKG_BUILD_DEPENDS:=golang/host
-PKG_BUILD_PARALLEL:=1
-PKG_BUILD_FLAGS:=no-mips16
+LUCI_TITLE:=LuCI app for ZJKJU Ruijie ePortal authentication
+LUCI_DESCRIPTION:=A LuCI application that keeps ZJKJU campus network logged in via Ruijie ePortal web authentication.
+LUCI_DEPENDS:=+luci-base +luci-compat +curl
+LUCI_PKGARCH:=all
 
-GO_PKG:=ruijie-auth
-
-include $(INCLUDE_DIR)/package.mk
-include $(TOPDIR)/feeds/packages/lang/golang/golang-package.mk
-
-define Package/luci-app-zjkju-auth
-  SECTION:=luci
-  CATEGORY:=LuCI
-  SUBMENU:=3. Applications
-  TITLE:=LuCI app for ZJKJU Ruijie ePortal authentication
-  DEPENDS:=$(GO_ARCH_DEPENDS) +luci-base +luci-compat +curl
-endef
-
-define Package/luci-app-zjkju-auth/description
-  A LuCI application that keeps ZJKJU campus network logged in via Ruijie ePortal web authentication.
-endef
-
-define Build/Prepare
-	mkdir -p $(PKG_BUILD_DIR)
-	$(CP) ./Ruijie_Portal_Auth.go ./go.mod $(PKG_BUILD_DIR)/
-endef
+include $(TOPDIR)/feeds/luci/luci.mk
 
 define Package/luci-app-zjkju-auth/install
-	$(call GoPackage/Package/Install/Bin,$(PKG_INSTALL_DIR))
-
 	$(INSTALL_DIR) $(1)/usr/bin
-	$(INSTALL_BIN) $(GO_PKG_BUILD_BIN_DIR)/ruijie-auth $(1)/usr/bin/ruijie
 	$(INSTALL_BIN) ./root/usr/bin/zjkju-auth-wrapper.sh $(1)/usr/bin/zjkju-auth-wrapper.sh
 	$(INSTALL_DIR) $(1)/etc/config
 	$(INSTALL_CONF) ./root/etc/config/zjkju-auth $(1)/etc/config/zjkju-auth
@@ -54,5 +32,4 @@ define Package/luci-app-zjkju-auth/install
 	$(INSTALL_DATA) ./luasrc/view/zjkju-auth/log.htm $(1)/usr/lib/lua/luci/view/zjkju-auth/log.htm
 endef
 
-$(eval $(call GoBinPackage,luci-app-zjkju-auth))
 $(eval $(call BuildPackage,luci-app-zjkju-auth))
