@@ -196,7 +196,6 @@ make package/luci-app-zjkju-auth/compile V=s
 luci-app-zjkju-auth/
 ├── .github/workflows/build.yml       # GitHub Actions 云编译配置
 ├── Makefile                          # OpenWrt 包定义
-├── uninstall-zjkju.sh                # 一键卸载脚本
 ├── root/                             # 安装到路由器的文件
 │   ├── etc/
 │   │   ├── config/zjkju-auth         # UCI 默认配置
