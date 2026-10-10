@@ -1,3 +1,4 @@
+```markdown
 # LuCI App - 湛江科技学院锐捷校园网自动认证 (luci-app-zjkju-auth)
 
 一个用于 ImmortalWrt / OpenWrt 的 LuCI 应用，在后台自动完成湛江科技学院锐捷 ePortal Web 认证，支持断线自动重连、开机自启、Web 界面配置。
@@ -9,51 +10,57 @@
 ## 📷 界面预览
 
 - **菜单**：服务 → ZJKJU 校园网认证
-- **配置项**：学号、密码、服务类型（默认电信校园网）、检测间隔、手动认证 URL（可选）
-- **运行日志**：实时查看认证日志，每 10 秒自动刷新
+- **配置项**：学号、密码、服务类型（默认电信校园网）、手动认证 URL（可选）
+- **实时状态**：当前在线/离线状态 + 服务进程状态
+- **运行日志**：实时查看认证日志，每 10 秒自动刷新，支持一键清空
 ![图片](./认证页.png)
 
 ## ✨ 特性
 
+- ✅ **全架构通用**：shell + curl 实现，一个 ipk 支持所有 CPU 架构（ARM / MIPS / x86）
+- ✅ **包体积极小**：仅 ~7 KB（相比 Go 版本的 2 MB 缩小 100 倍）
 - ✅ **图形化配置**：LuCI Web 界面填写学号密码，无需 SSH
-- ✅ **自动认证**：开机自启动，断线自动重连
+- ✅ **自动认证**：开机自启动，断线自动重连（默认 10 秒检测一次）
+- ✅ **实时状态指示**：顶部徽章实时显示在线/离线状态，服务进程运行状态
 - ✅ **进程守护**：procd 守护，崩溃后自动重启
-- ✅ **实时日志**：LuCI 页面内查看运行日志，无需 SSH
+- ✅ **实时日志**：LuCI 页面内查看运行日志，无需 SSH，支持一键清空
 - ✅ **三层 URL 兜底**：手动 URL / 自动抓取 / 缓存兜底
-- ✅ **严格遵循上游**：认证逻辑 100% 复用上游 Go 二进制，不做任何修改
-- ✅ **兼容性好**：专为 ImmortalWrt 24.10 及以上版本编译
+- ✅ **智能检测**：双 DNS ping + HTTP 兜底，流量几乎为零
 
 ## 💻 支持平台
 
 | 项目 | 版本 |
 |------|------|
-| 系统 | ImmortalWrt / OpenWrt 24.10+ |
-| 目标平台 | `mediatek/filogic`（如 WR30U、AX3000T 等 MT7981 路由器） |
-| CPU 架构 | `aarch64_cortex-a53` (ARM64) |
+| 系统 | ImmortalWrt / OpenWrt 21.02+ |
+| 包格式 | ipk（opkg） |
+| CPU 架构 | **全架构通用**（aarch64 / armv7 / mips / mipsel / x86_64） |
+| 依赖 | `luci-base`、`luci-compat`、`curl` |
 
-如需适配其他平台/架构，修改 `.github/workflows/build.yml` 中的 SDK 下载地址即可。
+> 本包为** shell 实现**，不含任何预编译二进制，因此一个 ipk 通吃所有 CPU 架构，理论上支持所有 ImmortalWrt / OpenWrt 系统。
+
+> 💡 OpenWrt 25.12+ 已改用 apk 包格式，本仓库暂未提供 apk 版本。
 
 ## 📥 下载预编译版本
 
 进入 GitHub 仓库的 **Releases** 或 **Actions** 页面，下载最新构建产物：
 
-| 文件名 | 适用平台 | 架构 |
+| 文件名 | 适用系统 | 架构 |
 |--------|----------|------|
-| luci-app-zjkju-auth_1.0.0-r1_aarch64_cortex-a53.ipk | ImmortalWrt 24.10 | aarch64_cortex-a53 |
+| luci-app-zjkju-auth_1.0.1-r1_all.ipk | OpenWrt / ImmortalWrt 21.02 ~ 24.10 | **全架构** |
 
 ## 🚀 安装
 
 ### 1. 上传 ipk 到路由器
 
 ```bash
-scp luci-app-zjkju-auth_1.0.0-r1_all.ipk root@192.168.1.1:/tmp/
+scp luci-app-zjkju-auth_1.0.1-r1_all.ipk root@192.168.1.1:/tmp/
 ```
 
 ### 2. SSH 登录路由器安装
 
 ```bash
 opkg update
-opkg install /tmp/luci-app-zjkju-auth_1.0.0-r1_all.ipk
+opkg install /tmp/luci-app-zjkju-auth_1.0.1-r1_all.ipk
 ```
 
 如果提示缺少依赖（`luci-compat`、`curl`），先执行：
@@ -70,36 +77,34 @@ opkg install luci-compat curl
 - **学号**：填你的学号
 - **密码**：填你的密码
 - **服务类型**：保持默认 `%E7%94%B5%E4%BF%A1%E6%A0%A1%E5%9B%AD%E7%BD%91`（电信校园网）
-- **检测间隔（秒）**：默认 60，可改为 120 或 180 减少日志
 - **手动认证 URL（可选）**：留空则自动抓取
 
 点击 **保存并应用**，服务会自动启动。
 
-### 4. 查看日志
+### 4. 查看状态和日志
 
-页面底部"运行日志"区会实时显示认证日志，每 10 秒自动刷新：
+页面顶部显示实时状态徽章：
 
-```
-wrapper started
-锐捷认证客户端启动
-用户名: 填你的学号
-身份类型: %E7%94%B5%E4%BF%A1%E6%A0%A1%E5%9B%AD%E7%BD%91
-使用手动指定的认证地址
-认证地址: http://10.80.80.249/eportal/index.jsp?wlanuserip=...
-提取到queryString (长度: 236)
-已联网，无需认证
+| 徽章 | 含义 |
+|------|------|
+| 🟢 **在线** | 网络已连接，认证有效 |
+| 🔴 **离线** | 检测到掉线，正在自动重新认证 |
+| ⚫ **未运行** | 服务进程已停止 |
+| ⚪ **未知** | 检测失败 |
+
+页面底部"运行日志"区会实时显示认证日志，每 10 秒自动刷新，支持：
+
+- **立即刷新**：手动刷新日志
+- **重启服务**：重启认证服务
+- **清空日志**：一键清空系统日志
+
+## 🗑️ 卸载
+
+```bash
+uninstall-zjkju
 ```
 
-掉线时会自动触发：
-
-```
-正在尝试认证...
-认证请求URL: http://10.80.80.249/eportal/InterFace.do?method=login
-发送POST数据...
-响应状态: 200
-响应内容: {"userIndex":"...","result":"success",...}
-认证成功！
-```
+一键停止服务、删除所有相关文件、清理缓存。
 
 ## ⚙️ 工作原理
 
@@ -107,9 +112,19 @@ wrapper started
 
 | 组件 | 职责 |
 |------|------|
-| `ruijie` (Go 二进制) | 执行一次认证，接收 `-u -p -s -m` 参数（严格复用上游） |
-| `zjkju-auth-wrapper.sh` | 循环检测在线状态；掉线时抓取最新 URL；调用 `ruijie` |
-| LuCI 前端 | 配置界面 + 日志查看 |
+| `zjkju-auth-wrapper.sh` | 纯 shell 脚本，循环检测在线状态；掉线时抓取最新 URL；用 curl 发送认证请求 |
+| LuCI 前端 | 配置界面 + 状态指示 + 日志查看 |
+| procd 服务 | 守护 wrapper 进程，崩溃自动重启 |
+
+### 智能在线检测（双 DNS + HTTP）
+
+```
+① ping 223.5.5.5（阿里主 DNS）→ 通就认为在线
+② ping 223.6.6.6（阿里备 DNS）→ 通就认为在线
+③ HTTP 访问 msftconnecttest.com 确认 → 防 ICMP 被拦误判
+```
+
+流量消耗约 20 MB/月（相比纯 HTTP 检测的 300 MB/月，省 93%）。
 
 ### 三层 URL 兜底
 
@@ -121,18 +136,23 @@ wrapper started
 
 上游 `ruijie` 的 `-e` 模式进入循环后**永远使用最初传入的 URL**。但学校掉线后 `wlanuserip` 等参数会变化，旧 URL 会失效。因此我们用 wrapper 重新实现了循环，每次掉线都重新抓取最新 URL。
 
-### 为什么不用 `getOnlineUserInfo` 判断在线？
+### 为什么改用纯 shell 实现？
 
-`getOnlineUserInfo` 接口**不带 Cookie 请求时永远返回 fail**，不能反映真实在线状态。我们让 `ruijie` 二进制内部自带的 `checkNetwork()` 判断在线（访问百度/QQ/163）。
+上游使用 Go 语言实现，编译出的二进制每个架构需单独编译（2 MB/架构），需要 Go 编译环境，包体积大。改用 shell + curl 后：
+
+- 一个 ipk **全架构通用**（~7 KB）
+- 无需 Go 编译环境
+- 编译时间从 13 分钟缩短到 2 分钟
+- **认证逻辑与上游完全一致**
 
 ## 🛠️ 自行编译
 
 ### 使用 GitHub Actions 云编译（推荐）
 
 1. Fork 本仓库
-2. 修改 `.github/workflows/build.yml` 中的 SDK 地址（如需适配其他平台）
-3. 推送到 `main` 分支，GitHub Actions 会自动编译
-4. 在 Actions 页面的 Artifacts 中下载 `luci-app-zjkju-auth-ipk`
+2. 进入 **Actions** 页面 → 点击 **Run workflow**
+3. 等待约 2 分钟
+4. 编译产物自动发布到 Releases
 
 ### 本地编译（需要 OpenWrt SDK）
 
@@ -161,6 +181,7 @@ make package/luci-app-zjkju-auth/compile V=s
 luci-app-zjkju-auth/
 ├── .github/workflows/build.yml       # GitHub Actions 云编译配置
 ├── Makefile                          # OpenWrt 包定义
+├── uninstall-zjkju.sh                # 一键卸载脚本
 ├── root/                             # 安装到路由器的文件
 │   ├── etc/
 │   │   ├── config/zjkju-auth         # UCI 默认配置
@@ -172,41 +193,45 @@ luci-app-zjkju-auth/
 │           ├── luci/menu.d/          # LuCI 菜单注册
 │           └── rpcd/acl.d/           # LuCI 权限声明
 └── luasrc/                           # LuCI 前端源码
-    ├── controller/zjkju-auth.lua     # 路由控制器
+    ├── controller/zjkju-auth.lua     # 路由控制器（含状态/日志/重启接口）
     ├── model/cbi/zjkju-auth/main.lua # 配置表单
-    └── view/zjkju-auth/log.htm       # 日志显示视图
+    └── view/zjkju-auth/log.htm       # 状态指示 + 日志显示
 ```
 
 ## ❓ 常见问题
 
-**Q：为什么日志一直显示"已联网，无需认证"？**
+**Q：日志一直很安静，是不是服务挂了？**
 
-A：说明当前在线。`ruijie` 每次都会调一次，检测到在线就打印这句。可以调大"检测间隔"减少日志。
+A：**看顶部状态徽章**。🟢 在线说明服务正常。在线时 wrapper 静默检测，不输出日志——这正是优化后的效果。
 
-**Q：为什么清空手动 URL 后一直显示"无可用认证 URL"？**
+**Q：掉线后多久能恢复？**
 
-A：早期版本的 wrapper 在抓不到 URL 时会跳过认证。最新版本已修复——抓不到 URL 时用占位符调用 `ruijie`，让上游自己判断在线状态。
+A：**最多 10 秒**。wrapper 每 10 秒检测一次，检测到掉线立即认证。但如果学校网关有"观察期"（2-3 分钟），实际恢复时间可能更长。
 
-**Q：为什么日志显示"使用手动指定的认证地址"？**
+**Q：流量消耗大吗？**
 
-A：这是上游 `ruijie` 二进制的固定输出。只要传了 `-m` 参数就会打印这句，不代表用的就是"手动填的 URL"。实际来源可能是自动抓取或缓存。
-
-**Q：服务无法启动 / 认证一直失败怎么办？**
-
-A：
-1. 检查学号和密码是否正确
-2. 检查"服务类型"是否为 `%E7%94%B5%E4%BF%A1%E6%A0%A1%E5%9B%AD%E7%BD%91`
-3. 从浏览器复制一次有效的认证 URL，粘贴到"手动认证 URL"框，保存并应用
-4. 查看日志定位具体错误
+A：**极小**。使用双 DNS ping 检测，在线时每次只发一个 ICMP 包（~100 字节）。每月流量约 20 MB。
 
 **Q：支持其他学校吗？**
 
-A：理论上只要认证页面结构相同就能用。但需要自行测试。主要差异可能在：
+A：理论上只要认证页面结构相同就能用，但需要自行测试。主要差异可能在：
 - `service` 参数值（本仓库针对"电信校园网"）
 - 认证服务器 IP（本仓库针对 `10.80.80.249`）
 - 是否需要 RSA 加密密码（本仓库使用明文，`passwordEncrypt=false`）
 
 如需适配其他学校，修改 `root/usr/bin/zjkju-auth-wrapper.sh` 和 `root/etc/config/zjkju-auth` 中的 `service` 与 `AUTH_SERVER` 即可。
+
+**Q：25.12 能用吗？**
+
+A：OpenWrt 25.12+ 使用 apk 包格式，需单独编译。目前暂未提供 apk 版本。
+
+**Q：安装后 LuCI 里看不到菜单？**
+
+A：浏览器缓存问题。按 `Ctrl+Shift+R` 强制刷新，或退出 LuCI 重新登录。
+
+**Q：如何彻底卸载？**
+
+A：SSH 执行 `uninstall-zjkju`，会自动停止服务、删除所有相关文件、清理缓存。
 
 ## 🙏 致谢
 
@@ -219,10 +244,41 @@ A：理论上只要认证页面结构相同就能用。但需要自行测试。�
 
 ## 📄 许可证
 
-本项目遵循上游项目的许可证。使用前请阅读上游仓库的 LICENSE。
+本项目采用 **GNU General Public License v2.0**（GPL-2.0）许可证，详见 [LICENSE](./LICENSE) 文件。
+
+### 上游来源声明
+
+- 核心认证逻辑来自 [Micro-Cnhua/Ruijie_Porta_Auth](https://github.com/Micro-Cnhua/Ruijie_Porta_Auth)
+- 上游参考了 [Turris-Babel/school_ruijie](https://github.com/Turris-Babel/school_ruijie)
+- 上游未声明许可证，本项目自主选择 GPL-2.0，并保留上游版权声明
 
 ## ⚠️ 免责声明
 
 - 本项目仅供学习交流使用，请勿用于商业用途
 - 使用本工具可能违反学校网络管理规定，请自行承担风险
 - 密码保存在路由器 `/etc/config/zjkju-auth` 中（权限 600，仅 root 可读），请确保路由器安全
+```
+
+## 📋 主要改动
+
+| 位置 | 改动 |
+|------|------|
+| **简介** | 保持原样（一句话） |
+| **界面预览** | 加"实时状态"，去掉"检测间隔" |
+| **特性** | 改为全架构通用 + 小体积 + 状态指示 + 一键卸载 |
+| **支持平台** | 系统 21.02+，CPU 全架构通用 |
+| **下载版本** | 1.0.1-r1，架构"全架构" |
+| **安装命令** | 版本号改 1.0.1-r1 |
+| **新增状态徽章说明** | 4 种徽章表格 |
+| **新增卸载章节** | `uninstall-zjkju` |
+| **工作原理** | 改为纯 shell + 双 DNS 检测 |
+| **项目结构** | 加 `uninstall-zjkju.sh` |
+| **常见问题** | 更新为新版行为 |
+| **许可证** | GPL-2.0 + 来源声明 |
+
+## ⚠️ 别忘了
+
+1. **`LICENSE` 文件** 要在仓库根目录（GPL-2.0 全文）
+2. **`认证页.png`** 要在仓库根目录，否则图片显示不出来
+
+**替换 README.md，push 即可。**
