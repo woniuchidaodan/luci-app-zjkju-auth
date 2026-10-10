@@ -9,9 +9,17 @@ CACHE_FILE="/tmp/zjkju-auth-last-url"
 logger -t zjkju-auth "wrapper started"
 
 # ============================================================
-# 在线检测：内容比对，避免 HTTP 劫持误判
+# 在线检测：先 ping（双 DNS 兜底），失败再 HTTP（方案 C）
 # ============================================================
 is_online() {
+    # 第 1 层：ping 阿里双 DNS（主 + 备）
+    for PING_TARGET in 223.5.5.5 223.6.6.6; do
+        if ping -c 1 -W 2 "$PING_TARGET" >/dev/null 2>&1; then
+            return 0
+        fi
+    done
+
+    # 第 2 层：ping 都失败（ICMP 被拦 或 真掉线），用 HTTP 确认
     BODY=$(curl -s --max-time 5 -A "$UA" \
         "http://www.msftconnecttest.com/connecttest.txt" 2>/dev/null | tr -d '\r\n')
     [ "$BODY" = "Microsoft Connect Test" ]
@@ -21,14 +29,12 @@ is_online() {
 # 抓取认证页 URL（三层兜底）
 # ============================================================
 fetch_auth_url() {
-    # 第 1 层：手动 URL
     config_get manual_url main manual_url
     if [ -n "$manual_url" ]; then
         echo "$manual_url"
         return 0
     fi
 
-    # 第 2 层：访问普通外网，从 302 抓
     for TRIGGER in \
         "http://www.baidu.com/" \
         "http://www.example.com/" \
@@ -57,7 +63,6 @@ fetch_auth_url() {
         fi
     done
 
-    # 第 3 层：缓存的 URL
     if [ -f "$CACHE_FILE" ]; then
         CACHED=$(cat "$CACHE_FILE" 2>/dev/null)
         if echo "$CACHED" | grep -q "wlanuserip="; then
@@ -69,16 +74,10 @@ fetch_auth_url() {
     return 1
 }
 
-# ============================================================
-# 对 queryString 做一次 URL 编码（为 curl 的双重编码做准备）
-# ============================================================
 urlencode_query() {
     echo "$1" | sed 's/=/\%3D/g; s/&/\%26/g'
 }
 
-# ============================================================
-# 执行一次认证
-# ============================================================
 do_auth() {
     AUTH_URL="$1"
     USERNAME="$2"
@@ -92,7 +91,6 @@ do_auth() {
         return 1
     fi
 
-    # 先编码一次 = 和 &，curl 会再编码一次 %，最终双重编码
     QS_ENCODED=$(urlencode_query "$QUERY_STRING")
 
     logger -t zjkju-auth "锐捷认证客户端启动"
@@ -150,7 +148,7 @@ while true; do
     config_get username main username
     config_get password main password
     config_get service main service
-    config_get check_interval main check_interval 60
+    config_get check_interval main check_interval 10
 
     if [ "$enabled" != "1" ]; then
         sleep 10
