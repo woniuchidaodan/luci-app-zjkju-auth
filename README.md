@@ -127,7 +127,7 @@ wrapper started
 
 | 组件 | 职责 |
 |------|------|
-| `zjkju-auth-wrapper.sh` | 纯 shell 脚本，循环检测在线状态；掉线时抓取最新 URL；用 curl 发送认证请求 |
+| `zjkju-auth-wrapper.sh` | shell 脚本，循环检测在线状态；掉线时抓取最新 URL；用 curl 发送认证请求 |
 | LuCI 前端 | 配置界面 + 状态指示 + 日志查看 |
 | procd 服务 | 守护 wrapper 进程，崩溃自动重启 |
 
