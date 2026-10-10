@@ -3,6 +3,7 @@
 AUTH_SERVER="http://10.80.80.249"
 UA="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 CACHE_FILE="/tmp/zjkju-auth-last-url"
+ONLINE_FLAG="/tmp/zjkju-auth-online-printed"
 
 . /lib/functions.sh
 
@@ -19,10 +20,6 @@ is_online() {
     [ "$BODY" = "Microsoft Connect Test" ]
 }
 
-# ============================================================
-# 抓取认证页 URL：访问多个外网地址，从 302 Location 提取
-# 网关未拦截时返回空，由主循环静默重试
-# ============================================================
 fetch_auth_url() {
     config_get manual_url main manual_url
     if [ -n "$manual_url" ]; then
@@ -32,28 +29,25 @@ fetch_auth_url() {
 
     for TRIGGER in \
         "http://www.baidu.com/" \
-        "http://www.qq.com/" \
         "http://www.example.com/" \
         "http://www.qualcomm.com/" \
-        "http://www.neverssl.com/"; do
+        "http://www.neverssl.com/" \
+        "http://www.qq.com/"; do
 
         RAW=$(curl -s -i --max-time 5 -A "$UA" "$TRIGGER" 2>/dev/null)
 
-        # Location 头
         LOC=$(echo "$RAW" | grep -i '^Location:' | head -1 \
             | sed 's/^[Ll]ocation: *//' | tr -d '\r\n')
         case "$LOC" in
             *wlanuserip=*) echo "$LOC"; return 0 ;;
         esac
 
-        # body 里的完整 URL
         EXT=$(echo "$RAW" | grep -oE "http[s]?://[^\"'<> ]*wlanuserip=[^\"'<> ]*" | head -1)
         if [ -n "$EXT" ]; then
             echo "$EXT"
             return 0
         fi
 
-        # body 里的相对路径
         EXT=$(echo "$RAW" | grep -oE "/eportal/index\.jsp\?[^\"'<> ]+" | head -1)
         if [ -n "$EXT" ]; then
             echo "$AUTH_SERVER$EXT"
@@ -61,7 +55,6 @@ fetch_auth_url() {
         fi
     done
 
-    # 缓存兜底
     if [ -f "$CACHE_FILE" ]; then
         CACHED=$(cat "$CACHE_FILE" 2>/dev/null)
         if echo "$CACHED" | grep -q "wlanuserip="; then
@@ -93,6 +86,7 @@ do_auth() {
 
     logger -t zjkju-auth "锐捷认证客户端启动"
     logger -t zjkju-auth "用户名: $USERNAME"
+    logger -t zjkju-auth "身份类型: $SERVICE"
     logger -t zjkju-auth "认证地址: $AUTH_URL"
     logger -t zjkju-auth "提取到queryString (长度: ${#QUERY_STRING})"
 
@@ -131,9 +125,6 @@ do_auth() {
     esac
 }
 
-# ============================================================
-# 主循环
-# ============================================================
 while true; do
     config_load zjkju-auth
 
@@ -141,7 +132,7 @@ while true; do
     config_get username main username
     config_get password main password
     config_get service main service
-    config_get check_interval main check_interval 5
+    config_get check_interval main check_interval 10
 
     if [ "$enabled" != "1" ]; then
         sleep 10
@@ -154,22 +145,32 @@ while true; do
         continue
     fi
 
-    # 在线时静默等待
+    # ============================================================
+    # 在线检测
+    # 首次在线时打印一次"已联网，无需认证"，之后静默
+    # ============================================================
     if is_online; then
+        if [ ! -f "$ONLINE_FLAG" ]; then
+            logger -t zjkju-auth "已联网，无需认证"
+            touch "$ONLINE_FLAG"
+        fi
         sleep "$check_interval"
         continue
     fi
 
-    # 掉线了，尝试抓 URL
+    # 掉线了：清除标记（下次恢复在线时会再打印一次）
+    rm -f "$ONLINE_FLAG"
+
+    # ============================================================
+    # 抓 URL + 认证
+    # ============================================================
     AUTH_URL=$(fetch_auth_url)
     if [ -z "$AUTH_URL" ]; then
-        # ★ 关键：抓不到 URL 时不报错，静默重试
-        # 网关有 2-3 分钟的观察期，这段时间抓不到是正常的
+        # 网关观察期，静默重试
         sleep 5
         continue
     fi
 
-    # 抓到了 URL，立即认证
     logger -t zjkju-auth "检测到掉线，开始认证"
     if do_auth "$AUTH_URL" "$username" "$password" "$service"; then
         case "$AUTH_URL" in
