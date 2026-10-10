@@ -97,13 +97,31 @@ opkg install luci-compat curl
 - **重启服务**：重启认证服务
 - **清空日志**：一键清空系统日志
 
-## 🗑️ 卸载
+页面底部"运行日志"区会实时显示认证日志，每 10 秒自动刷新：
 
-```bash
-uninstall-zjkju
+```
+wrapper started
+锐捷认证客户端启动
+用户名: 填你的学号
+身份类型: %E7%94%B5%E4%BF%A1%E6%A0%A1%E5%9B%AD%E7%BD%91
+使用手动指定的认证地址
+认证地址: http://10.80.80.249/eportal/index.jsp?wlanuserip=...
+提取到queryString (长度: 236)
+已联网，无需认证
 ```
 
-一键停止服务、删除所有相关文件、清理缓存。
+掉线时会自动触发：
+
+```
+正在尝试认证...
+认证请求URL: http://10.80.80.249/eportal/InterFace.do?method=login
+发送POST数据...
+响应状态: 200
+响应内容: {"userIndex":"...","result":"success",...}
+认证成功！
+```
+
+
 
 ## ⚙️ 工作原理
 
