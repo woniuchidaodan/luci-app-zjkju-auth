@@ -166,7 +166,7 @@ wrapper started
 
 1. Fork 本仓库
 2. 进入 **Actions** 页面 → 点击 **Run workflow**
-3. 等待约 2 分钟
+3. 等待约 10 分钟
 4. 编译产物自动发布到 Releases
 
 ### 本地编译（需要 OpenWrt SDK）
