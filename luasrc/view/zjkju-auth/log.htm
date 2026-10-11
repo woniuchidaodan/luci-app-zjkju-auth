@@ -5,11 +5,14 @@ if not log or log == "" then log = "（暂无日志，服务可能还未启动�
 %>
 
 <style>
+.zjkju-wrapper {
+	padding: 12px 20px;
+}
 .zjkju-toolbar {
 	display: flex;
 	justify-content: space-between;
 	align-items: center;
-	margin-bottom: 10px;
+	margin-bottom: 12px;
 	flex-wrap: wrap;
 	gap: 10px;
 }
@@ -56,7 +59,7 @@ if not log or log == "" then log = "（暂无日志，服务可能还未启动�
 	font-size: 12px;
 	line-height: 1.5;
 	padding: 12px;
-	border-radius: 4px;
+	border-radius: 6px;
 	max-height: 400px;
 	overflow: auto;
 	white-space: pre-wrap;
@@ -64,45 +67,79 @@ if not log or log == "" then log = "（暂无日志，服务可能还未启动�
 	margin: 0;
 }
 
+/* ============ 现代化按钮 ============ */
 .zjkju-btn {
-	display: inline-block;
-	padding: 6px 14px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	padding: 8px 18px;
 	background: #2f80ed;
 	color: #fff;
 	border: none;
-	border-radius: 3px;
+	border-radius: 8px;
 	cursor: pointer;
 	font-size: 13px;
+	font-weight: 500;
 	white-space: nowrap;
-	transition: background 0.15s;
+	letter-spacing: 0.3px;
+	box-shadow: 0 1px 3px rgba(47, 128, 237, 0.2);
+	transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+	user-select: none;
 }
-.zjkju-btn:hover { background: #1c6dd0; }
-.zjkju-btn:active { background: #155bb5; }
-.zjkju-btn-danger { background: #e74c3c; }
-.zjkju-btn-danger:hover { background: #c0392b; }
-.zjkju-btn-danger:active { background: #a93226; }
+.zjkju-btn:hover {
+	background: #1c6dd0;
+	box-shadow: 0 4px 10px rgba(47, 128, 237, 0.35);
+	transform: translateY(-1px);
+}
+.zjkju-btn:active {
+	background: #155bb5;
+	box-shadow: 0 1px 2px rgba(47, 128, 237, 0.3);
+	transform: translateY(0);
+}
+.zjkju-btn:focus {
+	outline: none;
+	box-shadow: 0 0 0 3px rgba(47, 128, 237, 0.25);
+}
+
+.zjkju-btn-danger {
+	background: #e74c3c;
+	box-shadow: 0 1px 3px rgba(231, 76, 60, 0.2);
+}
+.zjkju-btn-danger:hover {
+	background: #c0392b;
+	box-shadow: 0 4px 10px rgba(231, 76, 60, 0.35);
+	transform: translateY(-1px);
+}
+.zjkju-btn-danger:active {
+	background: #a93226;
+	box-shadow: 0 1px 2px rgba(231, 76, 60, 0.3);
+	transform: translateY(0);
+}
+.zjkju-btn-danger:focus {
+	box-shadow: 0 0 0 3px rgba(231, 76, 60, 0.25);
+}
 </style>
 
 <div class="cbi-section">
+	<div class="zjkju-wrapper">
 
-	<!-- 顶部工具栏：左侧状态，右侧按钮 -->
-	<div class="zjkju-toolbar">
-		<div class="zjkju-toolbar-left">
-			<span class="zjkju-label"><%:当前状态%>:</span>
-			<span id="zjkju-status-badge" class="zjkju-badge zjkju-badge-unknown"><%:检测中%></span>
-			<span class="zjkju-label" style="margin-left: 12px;"><%:服务进程%>:</span>
-			<span id="zjkju-daemon-badge" class="zjkju-badge zjkju-badge-unknown"><%:检测中%></span>
-			<span class="zjkju-status-time" id="zjkju-status-time" style="margin-left: 12px;"></span>
+		<div class="zjkju-toolbar">
+			<div class="zjkju-toolbar-left">
+				<span class="zjkju-label"><%:当前状态%>:</span>
+				<span id="zjkju-status-badge" class="zjkju-badge zjkju-badge-unknown"><%:检测中%></span>
+				<span class="zjkju-label" style="margin-left: 12px;"><%:服务进程%>:</span>
+				<span id="zjkju-daemon-badge" class="zjkju-badge zjkju-badge-unknown"><%:检测中%></span>
+				<span class="zjkju-status-time" id="zjkju-status-time" style="margin-left: 12px;"></span>
+			</div>
+			<div class="zjkju-toolbar-right">
+				<button class="zjkju-btn" onclick="zjkjuRefresh()"><%:立即刷新%></button>
+				<button class="zjkju-btn" onclick="zjkjuRestart()"><%:重启服务%></button>
+				<button class="zjkju-btn zjkju-btn-danger" onclick="zjkjuClearLog()"><%:清空日志%></button>
+			</div>
 		</div>
-		<div class="zjkju-toolbar-right">
-			<button class="zjkju-btn" onclick="zjkjuRefresh()"><%:立即刷新%></button>
-			<button class="zjkju-btn" onclick="zjkjuRestart()"><%:重启服务%></button>
-			<button class="zjkju-btn zjkju-btn-danger" onclick="zjkjuClearLog()"><%:清空日志%></button>
-		</div>
+
+		<pre class="zjkju-log-box" id="zjkju-log"><%=pcdata(log)%></pre>
 	</div>
-
-	<!-- 日志区 -->
-	<pre class="zjkju-log-box" id="zjkju-log"><%=pcdata(log)%></pre>
 </div>
 
 <script type="text/javascript">
@@ -132,7 +169,6 @@ if not log or log == "" then log = "（暂无日志，服务可能还未启动�
 		el.className = 'zjkju-badge ' + cls;
 	}
 
-	// 日志刷新（不再更新时间戳）
 	window.zjkjuRefresh = function() {
 		XHR.get(logUrl, null, function(x) {
 			if (x && x.status === 200 && x.responseText !== undefined) {
@@ -143,7 +179,6 @@ if not log or log == "" then log = "（暂无日志，服务可能还未启动�
 		});
 	};
 
-	// 状态刷新（更新时间戳）
 	function zjkjuStatusRefresh() {
 		XHR.get(statusUrl, null, function(x) {
 			if (!x || x.status !== 200) {
